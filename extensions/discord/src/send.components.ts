@@ -162,11 +162,13 @@ type DiscordComponentSendOpts = {
 export function registerBuiltDiscordComponentMessage(params: {
   buildResult: DiscordComponentBuildResult;
   messageId: string;
+  expiresAtMs?: number;
 }): void {
   registerDiscordComponentEntries({
     entries: params.buildResult.entries,
     modals: params.buildResult.modals,
     messageId: params.messageId,
+    expiresAtMs: params.expiresAtMs,
   });
 }
 
@@ -302,6 +304,7 @@ export async function sendDiscordComponentMessage(
   registerBuiltDiscordComponentMessage({
     buildResult,
     messageId: result.id,
+    expiresAtMs: spec.expiresAtMs,
   });
 
   recordChannelActivity({
@@ -354,6 +357,7 @@ export async function editDiscordComponentMessage(
   registerBuiltDiscordComponentMessage({
     buildResult,
     messageId: result.id ?? messageId,
+    expiresAtMs: spec.expiresAtMs,
   });
 
   recordChannelActivity({

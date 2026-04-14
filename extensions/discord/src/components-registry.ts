@@ -39,11 +39,12 @@ function registerEntries<
 >(
   entries: T[],
   store: Map<string, T>,
-  params: { now: number; ttlMs: number; messageId?: string },
+  params: { now: number; ttlMs: number; messageId?: string; expiresAtMs?: number },
 ): void {
   for (const entry of entries) {
+    const expiresAt = entry.expiresAt ?? params.expiresAtMs;
     const normalized = normalizeEntryTimestamps(
-      { ...entry, messageId: params.messageId ?? entry.messageId },
+      { ...entry, messageId: params.messageId ?? entry.messageId, expiresAt },
       params.now,
       params.ttlMs,
     );
@@ -75,15 +76,25 @@ export function registerDiscordComponentEntries(params: {
   modals: DiscordModalEntry[];
   ttlMs?: number;
   messageId?: string;
+  expiresAtMs?: number;
 }): void {
   const now = Date.now();
   const ttlMs = params.ttlMs ?? DEFAULT_COMPONENT_TTL_MS;
+  // Pass expiresAtMs so registerEntries can use it when the entry doesn't already have expiresAt.
+  // Modal entries already have expiresAt set by buildDiscordComponentMessage from spec.expiresAtMs.
+  // Button entries use the default TTL unless they also have expiresAt pre-set.
   registerEntries(params.entries, getComponentEntries(), {
     now,
     ttlMs,
     messageId: params.messageId,
+    expiresAtMs: params.expiresAtMs,
   });
-  registerEntries(params.modals, getModalEntries(), { now, ttlMs, messageId: params.messageId });
+  registerEntries(params.modals, getModalEntries(), {
+    now,
+    ttlMs,
+    messageId: params.messageId,
+    expiresAtMs: params.expiresAtMs,
+  });
 }
 
 export function resolveDiscordComponentEntry(params: {
