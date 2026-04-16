@@ -738,9 +738,11 @@ function resolveRadioGroupValueFromRaw(
   interaction: ModalInteraction,
   fieldId: string,
 ): string | null {
-  for (const component of interaction.rawData.data.components ?? []) {
+  // Guard against malformed payloads where rawData or data may be absent.
+  const raw = interaction.rawData as { data?: { components?: unknown[] } } | null | undefined;
+  for (const component of raw?.data?.components ?? []) {
     // oxlint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison -- ComponentType is a discriminated-union discriminant here; narrowing is intentional
-    if (component.type === ComponentType.Label) {
+    if ((component as { type?: unknown }).type === ComponentType.Label) {
       const sub = (component as ModalSubmitLabelComponent).component;
       if (sub?.custom_id === fieldId && sub.type === ComponentType.RadioGroup) {
         return sub.value ?? null;
@@ -760,18 +762,23 @@ export function resolveModalFieldValues(
     label: option.label,
   }));
   const required = field.required === true;
+
+  // Radio fields are resolved directly from the raw payload (bypassing Carbon's
+  // FieldsHandler). The required check is performed here, outside the try/catch,
+  // so a missing required radio value throws rather than being swallowed.
+  if (field.type === "radio") {
+    const value = resolveRadioGroupValueFromRaw(interaction, field.id);
+    if (required && !value) {
+      throw new Error(`Missing required field: ${field.id}`);
+    }
+    return value ? mapOptionLabels(optionLabels, [value]) : [];
+  }
+
   try {
     switch (field.type) {
       case "text": {
         const value = required ? fields.getText(field.id, true) : fields.getText(field.id);
         return value ? [value] : [];
-      }
-      case "radio": {
-        const value = resolveRadioGroupValueFromRaw(interaction, field.id);
-        if (required && !value) {
-          throw new Error(`Missing required field: ${field.id}`);
-        }
-        return value ? mapOptionLabels(optionLabels, [value]) : [];
       }
       case "select":
       case "checkbox": {
